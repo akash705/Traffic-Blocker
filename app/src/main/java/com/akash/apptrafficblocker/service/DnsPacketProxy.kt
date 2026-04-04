@@ -37,6 +37,19 @@ class DnsPacketProxy(
     // Cache UID -> package name lookups
     private val uidToPackage = HashMap<Int, String?>()
 
+    // If all apps have the same mode, skip UID lookup entirely
+    private val uniformMode: String? = run {
+        val modes = appBlockingModes.values.toSet()
+        if (modes.size == 1) modes.first() else null
+    }
+
+    // When UID lookup fails with mixed modes, use the most restrictive
+    private val fallbackMode: String = if (appBlockingModes.values.any { it == PrefsManager.MODE_BLOCK_ALL }) {
+        PrefsManager.MODE_BLOCK_ALL
+    } else {
+        PrefsManager.MODE_BLOCK_DOMAINS
+    }
+
     fun start() {
         running = true
         // Pre-populate UID cache for target apps
@@ -131,16 +144,23 @@ class DnsPacketProxy(
 
     /**
      * Look up which app owns the given source port via /proc/net/udp,
-     * then return its blocking mode. Falls back to block_domains if lookup fails.
+     * then return its blocking mode.
+     *
+     * Optimizations:
+     * - If all apps share the same mode, skips UID lookup entirely
+     * - If UID lookup fails (common on Android 10+), falls back to most restrictive mode
      */
     private fun getBlockingModeForPort(srcPort: Int): String {
+        // Fast path: all apps have the same mode, no need for UID lookup
+        uniformMode?.let { return it }
+
         val uid = getUidForPort(srcPort)
-        if (uid < 0) return PrefsManager.MODE_BLOCK_DOMAINS // Can't identify → use domain list
+        if (uid < 0) return fallbackMode
 
         val pkg = uidToPackage.getOrPut(uid) {
             context.packageManager.getNameForUid(uid)
         }
-        if (pkg == null) return PrefsManager.MODE_BLOCK_DOMAINS
+        if (pkg == null) return fallbackMode
 
         return appBlockingModes[pkg] ?: PrefsManager.MODE_BLOCK_ALL
     }
