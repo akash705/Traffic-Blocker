@@ -93,6 +93,10 @@ class PrefsManager(context: Context) {
             prefs.edit().putStringSet(KEY_APP_BLOCKING_MODES, entries).apply()
         }
 
+    var themeMode: String
+        get() = prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
+        set(value) = prefs.edit().putString(KEY_THEME_MODE, value).apply()
+
     fun getAppBlockingMode(packageName: String): String {
         return appBlockingModes[packageName] ?: MODE_BLOCK_ALL
     }
@@ -110,8 +114,12 @@ class PrefsManager(context: Context) {
         private const val KEY_POLL_INTERVAL = "pref_poll_interval"
         private const val KEY_SHOW_BLOCK_LOG = "pref_show_block_log"
         private const val KEY_APP_BLOCKING_MODES = "pref_app_blocking_modes"
+        private const val KEY_THEME_MODE = "pref_theme_mode"
         const val DEFAULT_POLL_INTERVAL = 1000L
         const val MODE_BLOCK_ALL = "block_all"
         const val MODE_BLOCK_DOMAINS = "block_domains"
+        const val THEME_SYSTEM = "system"
+        const val THEME_LIGHT = "light"
+        const val THEME_DARK = "dark"
     }
 }

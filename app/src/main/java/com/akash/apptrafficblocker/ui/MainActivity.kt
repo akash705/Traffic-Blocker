@@ -23,6 +23,7 @@ import com.akash.apptrafficblocker.data.PrefsManager
 import com.akash.apptrafficblocker.service.BlockerService
 import com.akash.apptrafficblocker.ui.navigation.AppNavGraph
 import com.akash.apptrafficblocker.ui.theme.AppTrafficBlockerTheme
+import com.akash.apptrafficblocker.ui.theme.ThemeState
 
 class MainActivity : ComponentActivity() {
 
@@ -71,6 +72,7 @@ class MainActivity : ComponentActivity() {
         prefs = PrefsManager(this)
 
         requestNotificationPermissionIfNeeded()
+        ThemeState.themeMode = prefs.themeMode
 
         setContent {
             AppTrafficBlockerTheme {

@@ -8,7 +8,11 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.akash.apptrafficblocker.data.PrefsManager
 
 private val DarkColorScheme = darkColorScheme(
     primary = Red500,
@@ -22,12 +26,22 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Green700
 )
 
+/** Global observable theme mode so changes apply immediately across the app */
+object ThemeState {
+    var themeMode by mutableStateOf(PrefsManager.THEME_SYSTEM)
+}
+
 @Composable
 fun AppTrafficBlockerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (ThemeState.themeMode) {
+        PrefsManager.THEME_DARK -> true
+        PrefsManager.THEME_LIGHT -> false
+        else -> isSystemInDarkTheme()
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

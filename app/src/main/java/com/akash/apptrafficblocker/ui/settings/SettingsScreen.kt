@@ -44,8 +44,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.akash.apptrafficblocker.data.PrefsManager
 import com.akash.apptrafficblocker.ui.theme.Green500
 import com.akash.apptrafficblocker.ui.theme.Red500
+import com.akash.apptrafficblocker.ui.theme.ThemeState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,6 +100,44 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Theme mode
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Theme",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val themes = listOf(
+                        PrefsManager.THEME_SYSTEM to "System default",
+                        PrefsManager.THEME_LIGHT to "Light",
+                        PrefsManager.THEME_DARK to "Dark"
+                    )
+                    themes.forEach { (mode, label) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            RadioButton(
+                                selected = ThemeState.themeMode == mode,
+                                onClick = {
+                                    ThemeState.themeMode = mode
+                                    viewModel.prefs.themeMode = mode
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+
             // Auto-start toggle
             Card(
                 modifier = Modifier.fillMaxWidth(),

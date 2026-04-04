@@ -81,6 +81,24 @@ class AppPickerViewModel(application: Application) : AndroidViewModel(applicatio
         _selectedPackages.value = prefs.targetPackages
     }
 
+    fun selectAll() {
+        for (app in allApps) {
+            if (!prefs.isAppSelected(app.packageName)) {
+                prefs.addTargetApp(app.packageName, app.appName)
+            }
+        }
+        _selectedPackages.value = prefs.targetPackages
+    }
+
+    fun unselectAll() {
+        for (app in allApps) {
+            if (prefs.isAppSelected(app.packageName)) {
+                prefs.removeTargetApp(app.packageName)
+            }
+        }
+        _selectedPackages.value = prefs.targetPackages
+    }
+
     fun isSelected(packageName: String): Boolean {
         return packageName in _selectedPackages.value
     }

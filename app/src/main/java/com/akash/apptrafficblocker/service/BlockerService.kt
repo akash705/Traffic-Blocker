@@ -208,7 +208,7 @@ class BlockerService : VpnService() {
         try {
             val builder = Builder()
                 .addAddress("10.0.0.2", 32)
-                .setSession("AppTrafficBlocker")
+                .setSession("TrafficBlocker")
                 .setBlocking(true)
                 .addDnsServer(UPSTREAM_DNS)
                 .addRoute(UPSTREAM_DNS, 32)
@@ -298,7 +298,7 @@ class BlockerService : VpnService() {
         }
 
         return NotificationCompat.Builder(this, BlockerApp.CHANNEL_ID)
-            .setContentTitle("AppTrafficBlocker")
+            .setContentTitle("Traffic Blocker")
             .setContentText(statusText)
             .setSmallIcon(R.drawable.ic_block)
             .setContentIntent(openIntent)
