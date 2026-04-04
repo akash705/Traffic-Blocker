@@ -147,6 +147,7 @@ class BlockerService : VpnService() {
         closeTunnel()
         prefs.serviceEnabled = false
         _state.value = BlockerState()
+        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
     private fun pauseBlocking() {
