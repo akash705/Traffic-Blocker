@@ -6,8 +6,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.akash.apptrafficblocker.service.BlockerService
 import com.akash.apptrafficblocker.ui.blocklist.BlocklistScreen
+import com.akash.apptrafficblocker.ui.dnslog.DnsLogScreen
 import com.akash.apptrafficblocker.ui.home.HomeScreen
 import com.akash.apptrafficblocker.ui.picker.AppPickerScreen
+import com.akash.apptrafficblocker.ui.profiles.ProfilesScreen
 import com.akash.apptrafficblocker.ui.settings.SettingsScreen
 
 object Routes {
@@ -15,6 +17,8 @@ object Routes {
     const val APP_PICKER = "app_picker"
     const val SETTINGS = "settings"
     const val BLOCKLIST = "blocklist"
+    const val DNS_LOG = "dns_log"
+    const val PROFILES = "profiles"
 }
 
 @Composable
@@ -30,6 +34,8 @@ fun AppNavGraph(
                 onNavigateToAppPicker = { navController.navigate(Routes.APP_PICKER) },
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 onNavigateToBlocklist = { navController.navigate(Routes.BLOCKLIST) },
+                onNavigateToDnsLog = { navController.navigate(Routes.DNS_LOG) },
+                onNavigateToProfiles = { navController.navigate(Routes.PROFILES) },
                 onRequestVpnPermission = onRequestVpnPermission
             )
         }
@@ -45,6 +51,16 @@ fun AppNavGraph(
         }
         composable(Routes.BLOCKLIST) {
             BlocklistScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.DNS_LOG) {
+            DnsLogScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.PROFILES) {
+            ProfilesScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

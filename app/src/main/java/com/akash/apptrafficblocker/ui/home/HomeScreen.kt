@@ -21,12 +21,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
@@ -42,8 +50,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,17 +83,30 @@ fun HomeScreen(
     onNavigateToAppPicker: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToBlocklist: () -> Unit,
+    onNavigateToDnsLog: () -> Unit,
+    onNavigateToProfiles: () -> Unit,
     onRequestVpnPermission: () -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val serviceState by blockerService?.state?.collectAsState()
-        ?: androidx.compose.runtime.remember {
-            androidx.compose.runtime.mutableStateOf(BlockerState())
-        }
+        ?: remember { mutableStateOf(BlockerState()) }
 
     val targetPackages = viewModel.prefs.targetPackages
     val targetAppNames = viewModel.prefs.targetAppNames
+
+    // Re-check usage stats permission when returning from Settings
+    var hasUsagePermission by remember { mutableStateOf(viewModel.hasUsageStatsPermission()) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasUsagePermission = viewModel.hasUsageStatsPermission()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {
@@ -129,50 +157,116 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
+                        var expandedPkg by remember { mutableStateOf<String?>(null) }
+
                         targetPackages.forEach { pkg ->
                             val appName = targetAppNames[pkg] ?: pkg
                             val mode = viewModel.getAppMode(pkg)
                             val modeLabel = if (mode == PrefsManager.MODE_BLOCK_ALL) "Block All" else "Block Domains"
                             val modeColor = if (mode == PrefsManager.MODE_BLOCK_ALL) Red500 else MaterialTheme.colorScheme.primary
+                            val bgBlocking = viewModel.isBackgroundBlocking(pkg)
+                            val isExpanded = expandedPkg == pkg
 
-                            Row(
+                            // Summary text for collapsed state
+                            val summaryParts = mutableListOf(modeLabel)
+                            if (bgBlocking) summaryParts.add("BG Blocked")
+                            val summaryText = summaryParts.joinToString(" \u00B7 ")
+
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 2.dp)
                             ) {
-                                Icon(
-                                    if (mode == PrefsManager.MODE_BLOCK_ALL) Icons.Default.Block else Icons.Default.Dns,
-                                    contentDescription = null,
-                                    tint = modeColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = appName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
+                                // Header row — always visible, tap to expand/collapse
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            expandedPkg = if (isExpanded) null else pkg
+                                        }
+                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        if (mode == PrefsManager.MODE_BLOCK_ALL) Icons.Default.Block else Icons.Default.Dns,
+                                        contentDescription = null,
+                                        tint = modeColor,
+                                        modifier = Modifier.size(20.dp)
                                     )
-                                    Text(
-                                        text = pkg,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = appName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = summaryText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(
+                                        if (isExpanded) Icons.Default.KeyboardArrowUp
+                                        else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
-                                AssistChip(
-                                    onClick = { viewModel.toggleAppMode(pkg) },
-                                    label = {
-                                        Text(
-                                            text = modeLabel,
-                                            style = MaterialTheme.typography.labelSmall
+
+                                // Expanded controls
+                                AnimatedVisibility(
+                                    visible = isExpanded,
+                                    enter = expandVertically(),
+                                    exit = shrinkVertically()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 28.dp, bottom = 4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        AssistChip(
+                                            onClick = { viewModel.toggleAppMode(pkg) },
+                                            label = {
+                                                Text(
+                                                    text = modeLabel,
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            },
+                                            colors = AssistChipDefaults.assistChipColors(
+                                                containerColor = modeColor.copy(alpha = 0.12f),
+                                                labelColor = modeColor
+                                            )
                                         )
-                                    },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = modeColor.copy(alpha = 0.12f),
-                                        labelColor = modeColor
-                                    )
-                                )
+                                        AssistChip(
+                                            onClick = { viewModel.toggleBackgroundBlocking(pkg) },
+                                            label = {
+                                                Text(
+                                                    text = if (bgBlocking) "BG Blocked" else "BG Allowed",
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            },
+                                            leadingIcon = {
+                                                if (bgBlocking) {
+                                                    Icon(
+                                                        Icons.Default.WifiOff,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                            },
+                                            colors = AssistChipDefaults.assistChipColors(
+                                                containerColor = if (bgBlocking) Orange500.copy(alpha = 0.12f)
+                                                    else MaterialTheme.colorScheme.surfaceVariant,
+                                                labelColor = if (bgBlocking) Orange500
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        )
+                                    }
+                                }
                             }
                         }
                     } else {
@@ -224,6 +318,74 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+            }
+
+            // DNS Query Log Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                onClick = onNavigateToDnsLog
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.History,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "DNS Query Log",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "View blocked & allowed queries",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Profiles Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                onClick = onNavigateToProfiles
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.SwapHoriz,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Profiles",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Save & switch blocking configurations",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -280,7 +442,7 @@ fun HomeScreen(
             }
 
             // Permission Warnings
-            if (!viewModel.hasUsageStatsPermission()) {
+            if (!hasUsagePermission) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -321,7 +483,7 @@ fun HomeScreen(
                         if (serviceState.isRunning) {
                             stopBlockerService(context)
                         } else {
-                            if (!viewModel.hasUsageStatsPermission()) {
+                            if (!hasUsagePermission) {
                                 context.startActivity(
                                     Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
                                 )

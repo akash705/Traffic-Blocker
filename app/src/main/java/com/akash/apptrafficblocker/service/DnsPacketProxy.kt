@@ -27,11 +27,16 @@ class DnsPacketProxy(
     private val vpnService: VpnService,
     private val appBlockingModes: Map<String, String>,
     private val context: Context,
+    private val backgroundBlockingApps: Set<String> = emptySet(),
     private val upstreamDns: InetAddress = InetAddress.getByName(UPSTREAM_DNS),
-    private val onDomainBlocked: ((String) -> Unit)? = null
+    private val onDnsQuery: ((domain: String, packageName: String?, blocked: Boolean, queryType: String) -> Unit)? = null
 ) {
     @Volatile
     private var running = false
+
+    /** Updated by BlockerService when the foreground app changes */
+    @Volatile
+    var foregroundPackage: String? = null
     private var thread: Thread? = null
 
     // Cache UID -> package name lookups
@@ -121,48 +126,81 @@ class DnsPacketProxy(
         val domain = parseDnsName(packet, dnsOffset + 12, length) ?: return
         val normalizedDomain = domain.lowercase().removePrefix("www.")
 
-        // Determine blocking mode for the source app
-        val blockingMode = getBlockingModeForPort(srcPort)
+        // Extract query type (A=1, AAAA=28) from the question section
+        val questionEnd = findQuestionEnd(packet, dnsOffset + 12, length)
+        val queryType = if (questionEnd != null && questionEnd >= dnsOffset + 12 + 4) {
+            // Query type is 2 bytes right after the QNAME (before QCLASS)
+            val typeOffset = questionEnd - 4
+            ((packet[typeOffset].toInt() and 0xFF) shl 8) or (packet[typeOffset + 1].toInt() and 0xFF)
+        } else {
+            1 // Default to Type A
+        }
 
-        val shouldBlock = when (blockingMode) {
-            PrefsManager.MODE_BLOCK_ALL -> true // Block ALL DNS for this app
-            PrefsManager.MODE_BLOCK_DOMAINS -> isDomainBlocked(normalizedDomain)
-            else -> isDomainBlocked(normalizedDomain) // Default to domain check
+        // Determine blocking mode and source app for the source port
+        val sourceInfo = getSourceInfoForPort(srcPort)
+        val blockingMode = sourceInfo.first
+        val sourcePackage = sourceInfo.second
+
+        // Block background data: if the app has background blocking enabled
+        // and it's NOT currently in the foreground, block all its DNS queries
+        val isInBackground = sourcePackage != null
+                && sourcePackage in backgroundBlockingApps
+                && foregroundPackage != sourcePackage
+
+        val shouldBlock = when {
+            isInBackground -> true // Block ALL DNS for background apps
+            blockingMode == PrefsManager.MODE_BLOCK_ALL -> true
+            blockingMode == PrefsManager.MODE_BLOCK_DOMAINS -> isDomainBlocked(normalizedDomain)
+            else -> isDomainBlocked(normalizedDomain)
+        }
+
+        val queryTypeStr = when (queryType) {
+            DNS_TYPE_A -> "A"
+            DNS_TYPE_AAAA -> "AAAA"
+            else -> "OTHER"
         }
 
         if (shouldBlock) {
-            Log.d(TAG, "Blocking DNS: $domain (mode=$blockingMode)")
-            onDomainBlocked?.invoke(domain)
-            val response = buildBlockedResponse(packet, length, ipHeaderLength, udpOffset, dnsOffset)
+            Log.d(TAG, "Blocking DNS: $domain (type=$queryType, mode=$blockingMode)")
+            onDnsQuery?.invoke(domain, sourcePackage, true, queryTypeStr)
+            val response = buildBlockedResponse(packet, length, ipHeaderLength, udpOffset, dnsOffset, queryType)
             if (response != null) {
                 output.write(response)
             }
         } else {
+            onDnsQuery?.invoke(domain, sourcePackage, false, queryTypeStr)
             forwardDnsQuery(packet, length, ipHeaderLength, udpOffset, dnsOffset, output)
         }
     }
 
     /**
      * Look up which app owns the given source port via /proc/net/udp,
-     * then return its blocking mode.
+     * then return its blocking mode and package name.
      *
      * Optimizations:
      * - If all apps share the same mode, skips UID lookup entirely
      * - If UID lookup fails (common on Android 10+), falls back to most restrictive mode
      */
-    private fun getBlockingModeForPort(srcPort: Int): String {
+    private fun getSourceInfoForPort(srcPort: Int): Pair<String, String?> {
         // Fast path: all apps have the same mode, no need for UID lookup
-        uniformMode?.let { return it }
+        uniformMode?.let {
+            // Still try to resolve package for logging
+            val uid = getUidForPort(srcPort)
+            val pkg = if (uid >= 0) uidToPackage.getOrPut(uid) {
+                context.packageManager.getNameForUid(uid)
+            } else null
+            return it to pkg
+        }
 
         val uid = getUidForPort(srcPort)
-        if (uid < 0) return fallbackMode
+        if (uid < 0) return fallbackMode to null
 
         val pkg = uidToPackage.getOrPut(uid) {
             context.packageManager.getNameForUid(uid)
         }
-        if (pkg == null) return fallbackMode
+        if (pkg == null) return fallbackMode to null
 
-        return appBlockingModes[pkg] ?: PrefsManager.MODE_BLOCK_ALL
+        return (appBlockingModes[pkg] ?: PrefsManager.MODE_BLOCK_ALL) to pkg
     }
 
     /**
@@ -204,6 +242,9 @@ class DnsPacketProxy(
     }
 
     private fun isDomainBlocked(domain: String): Boolean {
+        // Block known DoH/DoT providers to prevent DNS bypass via encrypted DNS
+        if (domain in DOH_DOMAINS) return true
+
         if (domain in blockedDomains) return true
 
         // Check parent domains
@@ -239,12 +280,19 @@ class DnsPacketProxy(
         return if (sb.isNotEmpty()) sb.toString() else null
     }
 
+    /**
+     * Build a DNS response that blocks the queried domain.
+     *
+     * Returns 0.0.0.0 for A queries, :: for AAAA queries, and NXDOMAIN for
+     * any other type. This ensures both IPv4 and IPv6 resolution is blocked.
+     */
     private fun buildBlockedResponse(
         originalPacket: ByteArray,
         originalLength: Int,
         ipHeaderLength: Int,
         udpOffset: Int,
-        dnsOffset: Int
+        dnsOffset: Int,
+        queryType: Int = 1
     ): ByteArray? {
         val srcIp = ByteArray(4)
         val dstIp = ByteArray(4)
@@ -260,28 +308,62 @@ class DnsPacketProxy(
             ?: return null
 
         val questionBytes = questionEnd - (dnsOffset + 12)
-        val dnsResponseSize = 12 + questionBytes + 16
+
+        // Build answer section based on query type
+        val answerBytes: ByteArray? = when (queryType) {
+            DNS_TYPE_A -> {
+                // Return 0.0.0.0 for A queries
+                val answer = ByteArray(16)
+                val aBuf = ByteBuffer.wrap(answer)
+                aBuf.putShort(0xC00C.toShort()) // Name pointer
+                aBuf.putShort(DNS_TYPE_A.toShort())
+                aBuf.putShort(1)  // Class IN
+                aBuf.putInt(3600) // TTL — cache the block for 1 hour
+                aBuf.putShort(4)  // RDLENGTH
+                aBuf.put(0); aBuf.put(0); aBuf.put(0); aBuf.put(0) // 0.0.0.0
+                answer
+            }
+            DNS_TYPE_AAAA -> {
+                // Return :: (all-zeros IPv6) for AAAA queries
+                val answer = ByteArray(28)
+                val aaaaBuf = ByteBuffer.wrap(answer)
+                aaaaBuf.putShort(0xC00C.toShort()) // Name pointer
+                aaaaBuf.putShort(DNS_TYPE_AAAA.toShort())
+                aaaaBuf.putShort(1)  // Class IN
+                aaaaBuf.putInt(3600) // TTL
+                aaaaBuf.putShort(16) // RDLENGTH (IPv6 = 16 bytes)
+                // 16 bytes of zeros = ::
+                for (i in 0 until 16) aaaaBuf.put(0)
+                answer
+            }
+            else -> null // NXDOMAIN for other types (HTTPS, SVCB, etc.)
+        }
+
+        val answerCount: Short = if (answerBytes != null) 1 else 0
+        val dnsResponseSize = 12 + questionBytes + (answerBytes?.size ?: 0)
         val dns = ByteArray(dnsResponseSize)
         val buf = ByteBuffer.wrap(dns)
 
-        buf.put(originalPacket[dnsOffset])
-        buf.put(originalPacket[dnsOffset + 1])
-        buf.putShort(0x8180.toShort())
-        buf.putShort(1)
-        buf.putShort(1)
-        buf.putShort(0)
-        buf.putShort(0)
+        // DNS header
+        buf.put(originalPacket[dnsOffset])     // Transaction ID high
+        buf.put(originalPacket[dnsOffset + 1]) // Transaction ID low
+        // Flags: QR=1 (response), AA=1 (authoritative), RCODE=0 if answer, 3 (NXDOMAIN) if no answer
+        val flags: Short = if (answerBytes != null) 0x8580.toShort() else 0x8583.toShort()
+        buf.putShort(flags)
+        buf.putShort(1)           // QDCOUNT
+        buf.putShort(answerCount) // ANCOUNT
+        buf.putShort(0)           // NSCOUNT
+        buf.putShort(0)           // ARCOUNT
 
+        // Copy question section
         System.arraycopy(originalPacket, dnsOffset + 12, dns, 12, questionBytes)
-        buf.position(12 + questionBytes)
 
-        buf.putShort(0xC00C.toShort())
-        buf.putShort(1)  // Type A
-        buf.putShort(1)  // Class IN
-        buf.putInt(300)  // TTL
-        buf.putShort(4)  // RDLENGTH
-        buf.put(0); buf.put(0); buf.put(0); buf.put(0) // 0.0.0.0
+        // Copy answer section if present
+        if (answerBytes != null) {
+            System.arraycopy(answerBytes, 0, dns, 12 + questionBytes, answerBytes.size)
+        }
 
+        // Build IP + UDP wrapper
         val udpLength = 8 + dnsResponseSize
         val ipTotalLength = 20 + udpLength
         val ip = ByteArray(ipTotalLength)
@@ -422,5 +504,35 @@ class DnsPacketProxy(
         private const val TAG = "DnsPacketProxy"
         private const val MAX_PACKET_SIZE = 32767
         private const val UPSTREAM_DNS = "8.8.8.8"
+        private const val DNS_TYPE_A = 1
+        private const val DNS_TYPE_AAAA = 28
+
+        // Known DoH/DoT providers — block their DNS resolution so browsers
+        // can't bypass our port-53 interception via encrypted DNS.
+        private val DOH_DOMAINS = setOf(
+            "dns.google",
+            "dns.google.com",
+            "dns64.dns.google",
+            "cloudflare-dns.com",
+            "one.one.one.one",
+            "1dot1dot1dot1.cloudflare-dns.com",
+            "mozilla.cloudflare-dns.com",
+            "dns.cloudflare.com",
+            "security.cloudflare-dns.com",
+            "family.cloudflare-dns.com",
+            "dns.quad9.net",
+            "dns9.quad9.net",
+            "dns10.quad9.net",
+            "dns11.quad9.net",
+            "doh.opendns.com",
+            "dns.adguard-dns.com",
+            "dns-unfiltered.adguard.com",
+            "dns-family.adguard.com",
+            "dns.nextdns.io",
+            "doh.cleanbrowsing.org",
+            "doh.dns.sb",
+            "dns.alidns.com",
+            "doh.pub",
+        )
     }
 }

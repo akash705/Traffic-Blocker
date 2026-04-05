@@ -18,16 +18,25 @@ class AppWatchdog(
     private val context: Context,
     private val targetPackages: Set<String>,
     private val pollIntervalMs: Long = 1000L,
+    private val onForegroundChanged: ((foregroundPackage: String?) -> Unit)? = null,
     private val onStateChange: (isTargetInForeground: Boolean) -> Unit
 ) {
     private var job: Job? = null
     private var lastState = false
+    private var lastForeground: String? = null
 
     fun start() {
         job = CoroutineScope(Dispatchers.Default).launch {
             Log.d(TAG, "AppWatchdog started — monitoring ${targetPackages.size} apps every ${pollIntervalMs}ms")
             while (isActive) {
                 val foreground = getForegroundPackage()
+
+                // Always update foreground package for background blocking
+                if (foreground != lastForeground) {
+                    lastForeground = foreground
+                    onForegroundChanged?.invoke(foreground)
+                }
+
                 val isTarget = foreground in targetPackages
                 if (isTarget != lastState) {
                     Log.d(TAG, "Foreground change: $foreground (isTarget=$isTarget)")

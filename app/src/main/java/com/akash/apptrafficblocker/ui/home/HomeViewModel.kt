@@ -16,6 +16,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         it.putAll(prefs.appBlockingModes)
     }
 
+    val backgroundBlockingApps = mutableStateMapOf<String, Boolean>().also { map ->
+        prefs.targetPackages.forEach { pkg ->
+            map[pkg] = prefs.isBackgroundBlockingEnabled(pkg)
+        }
+    }
+
     fun getAppMode(packageName: String): String {
         return appBlockingModes[packageName] ?: PrefsManager.MODE_BLOCK_ALL
     }
@@ -29,6 +35,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         prefs.setAppBlockingMode(packageName, newMode)
         appBlockingModes[packageName] = newMode
+    }
+
+    fun isBackgroundBlocking(packageName: String): Boolean {
+        return backgroundBlockingApps[packageName] ?: false
+    }
+
+    fun toggleBackgroundBlocking(packageName: String) {
+        val current = isBackgroundBlocking(packageName)
+        prefs.setBackgroundBlocking(packageName, !current)
+        backgroundBlockingApps[packageName] = !current
     }
 
     fun hasUsageStatsPermission(): Boolean {

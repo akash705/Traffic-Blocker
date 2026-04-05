@@ -93,6 +93,22 @@ class PrefsManager(context: Context) {
             prefs.edit().putStringSet(KEY_APP_BLOCKING_MODES, entries).apply()
         }
 
+    /** Apps that should have ALL network blocked when not in foreground */
+    var backgroundBlockingApps: Set<String>
+        get() = prefs.getStringSet(KEY_BACKGROUND_BLOCKING_APPS, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_BACKGROUND_BLOCKING_APPS, value).apply()
+
+    fun isBackgroundBlockingEnabled(packageName: String): Boolean =
+        packageName in backgroundBlockingApps
+
+    fun setBackgroundBlocking(packageName: String, enabled: Boolean) {
+        backgroundBlockingApps = if (enabled) {
+            backgroundBlockingApps + packageName
+        } else {
+            backgroundBlockingApps - packageName
+        }
+    }
+
     var themeMode: String
         get() = prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
         set(value) = prefs.edit().putString(KEY_THEME_MODE, value).apply()
@@ -114,6 +130,7 @@ class PrefsManager(context: Context) {
         private const val KEY_POLL_INTERVAL = "pref_poll_interval"
         private const val KEY_SHOW_BLOCK_LOG = "pref_show_block_log"
         private const val KEY_APP_BLOCKING_MODES = "pref_app_blocking_modes"
+        private const val KEY_BACKGROUND_BLOCKING_APPS = "pref_background_blocking_apps"
         private const val KEY_THEME_MODE = "pref_theme_mode"
         const val DEFAULT_POLL_INTERVAL = 1000L
         const val MODE_BLOCK_ALL = "block_all"

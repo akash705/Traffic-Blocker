@@ -6,14 +6,16 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [BlockEvent::class, BlocklistSource::class],
-    version = 2,
+    entities = [BlockEvent::class, BlocklistSource::class, DnsQueryLog::class, Profile::class],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun blockEventDao(): BlockEventDao
     abstract fun blocklistDao(): BlocklistDao
+    abstract fun dnsQueryLogDao(): DnsQueryLogDao
+    abstract fun profileDao(): ProfileDao
 
     companion object {
         @Volatile

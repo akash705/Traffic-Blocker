@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Traffic Blocker</string>
+    <string name="shortcut_start_label">Start Blocker</string>
+    <string name="shortcut_start_long_label">Start Traffic Blocker</string>
+    <string name="shortcut_stop_label">Stop Blocker</string>
+    <string name="shortcut_stop_long_label">Stop Traffic Blocker</string>
 </resources>

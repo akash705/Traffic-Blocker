@@ -104,9 +104,10 @@ class BlockerService : VpnService() {
         serviceScope.launch(Dispatchers.IO) {
             val domains = blocklistRepo.loadBlockedDomains()
             val appModes = prefs.appBlockingModes
+            val bgBlockApps = prefs.backgroundBlockingApps
 
             serviceScope.launch(Dispatchers.Main) {
-                openTunnel(targetPackages, domains, appModes)
+                openTunnel(targetPackages, domains, appModes, bgBlockApps)
                 startWatchdog(targetPackages)
                 prefs.serviceEnabled = true
                 _state.value = BlockerState(
@@ -123,7 +124,16 @@ class BlockerService : VpnService() {
 
     private fun startWatchdog(targetPackages: Set<String>) {
         val pollInterval = prefs.pollIntervalMs
-        watchdog = AppWatchdog(this, targetPackages, pollInterval) { isTargetInForeground ->
+        watchdog = AppWatchdog(
+            context = this,
+            targetPackages = targetPackages,
+            pollIntervalMs = pollInterval,
+            onForegroundChanged = { foregroundPkg ->
+                // Update the DNS proxy with current foreground app so it can
+                // block background data for apps that have it enabled
+                dnsProxy?.foregroundPackage = foregroundPkg
+            }
+        ) { isTargetInForeground ->
             _state.value = _state.value.copy(isBlocking = isTargetInForeground)
             if (isTargetInForeground) {
                 _state.value = _state.value.copy(lastBlockedAt = System.currentTimeMillis())
@@ -164,9 +174,10 @@ class BlockerService : VpnService() {
         serviceScope.launch(Dispatchers.IO) {
             val domains = blocklistRepo.loadBlockedDomains()
             val appModes = prefs.appBlockingModes
+            val bgBlockApps = prefs.backgroundBlockingApps
 
             serviceScope.launch(Dispatchers.Main) {
-                openTunnel(targetPackages, domains, appModes)
+                openTunnel(targetPackages, domains, appModes, bgBlockApps)
                 startWatchdog(targetPackages)
                 _state.value = _state.value.copy(
                     isPaused = false,
@@ -186,10 +197,11 @@ class BlockerService : VpnService() {
         serviceScope.launch(Dispatchers.IO) {
             val domains = blocklistRepo.loadBlockedDomains()
             val appModes = prefs.appBlockingModes
+            val bgBlockApps = prefs.backgroundBlockingApps
 
             serviceScope.launch(Dispatchers.Main) {
                 closeTunnel()
-                openTunnel(targetPackages, domains, appModes)
+                openTunnel(targetPackages, domains, appModes, bgBlockApps)
                 _state.value = _state.value.copy(
                     blockedDomainCount = domains.size,
                     appBlockingModes = appModes
@@ -202,7 +214,8 @@ class BlockerService : VpnService() {
     private fun openTunnel(
         targetPackages: Set<String>,
         blockedDomains: Set<String>,
-        appModes: Map<String, String>
+        appModes: Map<String, String>,
+        bgBlockApps: Set<String> = emptySet()
     ) {
         if (vpnInterface != null) return
 
@@ -215,6 +228,12 @@ class BlockerService : VpnService() {
                 .addRoute(UPSTREAM_DNS, 32)
                 .addDnsServer(UPSTREAM_DNS_SECONDARY)
                 .addRoute(UPSTREAM_DNS_SECONDARY, 32)
+
+            // Route known DoH/DoT provider IPs through VPN so their HTTPS/TLS
+            // connections are dropped, forcing browsers to fall back to standard DNS.
+            for (ip in DOH_PROVIDER_IPS) {
+                builder.addRoute(ip, 32)
+            }
 
             for (pkg in targetPackages) {
                 try {
@@ -236,7 +255,27 @@ class BlockerService : VpnService() {
                 blockedDomains = blockedDomains,
                 vpnService = this,
                 appBlockingModes = appModes,
-                context = this
+                context = this,
+                backgroundBlockingApps = bgBlockApps,
+                onDnsQuery = { domain, pkg, blocked, queryType ->
+                    serviceScope.launch(Dispatchers.IO) {
+                        try {
+                            db.dnsQueryLogDao().insert(
+                                com.akash.apptrafficblocker.data.DnsQueryLog(
+                                    domain = domain,
+                                    packageName = pkg,
+                                    blocked = blocked,
+                                    queryType = queryType
+                                )
+                            )
+                            // Auto-prune logs older than 24 hours
+                            val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000
+                            db.dnsQueryLogDao().deleteOlderThan(cutoff)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to log DNS query", e)
+                        }
+                    }
+                }
             )
             dnsProxy?.start()
 
@@ -372,6 +411,22 @@ class BlockerService : VpnService() {
         private const val UPSTREAM_DNS = "8.8.8.8"
         private const val UPSTREAM_DNS_SECONDARY = "8.8.4.4"
         private const val RESTART_REQUEST_CODE = 9999
+
+        // IPs of major DoH/DoT providers — route these through the VPN so
+        // encrypted DNS connections are dropped, forcing standard DNS fallback.
+        // (8.8.8.8 and 8.8.4.4 are already routed as our upstream DNS.)
+        private val DOH_PROVIDER_IPS = listOf(
+            "1.1.1.1",         // Cloudflare
+            "1.0.0.1",         // Cloudflare secondary
+            "9.9.9.9",         // Quad9
+            "149.112.112.112", // Quad9 secondary
+            "208.67.222.222",  // OpenDNS
+            "208.67.220.220",  // OpenDNS secondary
+            "94.140.14.14",    // AdGuard
+            "94.140.15.15",    // AdGuard secondary
+            "185.228.168.168", // CleanBrowsing
+            "185.228.169.168", // CleanBrowsing secondary
+        )
     }
 }
 
