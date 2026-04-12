@@ -1,10 +1,14 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+}
+
+fun getKeychainPassword(account: String, service: String): String {
+    return Runtime.getRuntime()
+        .exec(arrayOf("security", "find-generic-password", "-a", account, "-s", service, "-w"))
+        .inputStream.bufferedReader().readLine() ?: ""
 }
 
 android {
@@ -20,22 +24,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    val keystorePropsFile = rootProject.file("keystore.properties")
-    val keystoreProps = Properties()
-    if (keystorePropsFile.exists()) {
-        keystoreProps.load(keystorePropsFile.inputStream())
-    }
-
     signingConfigs {
         create("release") {
-            if (keystorePropsFile.exists()) {
-                storeFile = file(keystoreProps["storeFile"] as String)
-                storePassword = keystoreProps["storePassword"] as String
-                keyAlias = keystoreProps["keyAlias"] as String
-                keyPassword = keystoreProps["keyPassword"] as String
-                enableV1Signing = true
-                enableV2Signing = true
-            }
+            storeFile = file("${System.getProperty("user.home")}/.android/release.jks")
+            storePassword = getKeychainPassword("release-key", "android-release-keystore")
+            keyAlias = "release-key"
+            keyPassword = getKeychainPassword("release-key", "android-release-keystore")
         }
     }
 
