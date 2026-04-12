@@ -58,6 +58,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     var autoStart by remember { mutableStateOf(viewModel.prefs.autoStartOnBoot) }
     var pollInterval by remember { mutableLongStateOf(viewModel.prefs.pollIntervalMs) }
+    var upstreamDns by remember { mutableStateOf(viewModel.prefs.upstreamDns) }
 
     // Re-check permissions every time this screen is (re)composed / resumed
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -201,6 +202,49 @@ fun SettingsScreen(
                                 onClick = {
                                     pollInterval = ms
                                     viewModel.prefs.pollIntervalMs = ms
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+
+            // Upstream DNS
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Upstream DNS",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Server used to resolve unblocked domains. Takes effect on next service start.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val dnsOptions = listOf(
+                        PrefsManager.DNS_GOOGLE to "Google (8.8.8.8)",
+                        PrefsManager.DNS_CLOUDFLARE to "Cloudflare (1.1.1.1)",
+                        PrefsManager.DNS_QUAD9 to "Quad9 (9.9.9.9)"
+                    )
+                    dnsOptions.forEach { (ip, label) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            RadioButton(
+                                selected = upstreamDns == ip,
+                                onClick = {
+                                    upstreamDns = ip
+                                    viewModel.prefs.upstreamDns = ip
                                 }
                             )
                             Spacer(modifier = Modifier.width(8.dp))

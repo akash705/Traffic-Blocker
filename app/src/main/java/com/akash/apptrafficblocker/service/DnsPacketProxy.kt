@@ -28,7 +28,7 @@ class DnsPacketProxy(
     private val appBlockingModes: Map<String, String>,
     private val context: Context,
     private val backgroundBlockingApps: Set<String> = emptySet(),
-    private val upstreamDns: InetAddress = InetAddress.getByName(UPSTREAM_DNS),
+    private val upstreamDns: InetAddress = InetAddress.getByName("8.8.8.8"),
     private val onDnsQuery: ((domain: String, packageName: String?, blocked: Boolean, queryType: String) -> Unit)? = null
 ) {
     @Volatile
@@ -503,7 +503,6 @@ class DnsPacketProxy(
     companion object {
         private const val TAG = "DnsPacketProxy"
         private const val MAX_PACKET_SIZE = 32767
-        private const val UPSTREAM_DNS = "8.8.8.8"
         private const val DNS_TYPE_A = 1
         private const val DNS_TYPE_AAAA = 28
 

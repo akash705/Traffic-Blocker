@@ -219,15 +219,19 @@ class BlockerService : VpnService() {
     ) {
         if (vpnInterface != null) return
 
+        val primaryDns = prefs.upstreamDns
+        val secondaryDns = com.akash.apptrafficblocker.data.PrefsManager.DNS_SECONDARY[primaryDns]
+            ?: com.akash.apptrafficblocker.data.PrefsManager.DNS_SECONDARY[com.akash.apptrafficblocker.data.PrefsManager.DNS_GOOGLE]!!
+
         try {
             val builder = Builder()
                 .addAddress("10.0.0.2", 32)
                 .setSession("TrafficBlocker")
                 .setBlocking(true)
-                .addDnsServer(UPSTREAM_DNS)
-                .addRoute(UPSTREAM_DNS, 32)
-                .addDnsServer(UPSTREAM_DNS_SECONDARY)
-                .addRoute(UPSTREAM_DNS_SECONDARY, 32)
+                .addDnsServer(primaryDns)
+                .addRoute(primaryDns, 32)
+                .addDnsServer(secondaryDns)
+                .addRoute(secondaryDns, 32)
 
             // Route known DoH/DoT provider IPs through VPN so their HTTPS/TLS
             // connections are dropped, forcing browsers to fall back to standard DNS.
@@ -257,6 +261,7 @@ class BlockerService : VpnService() {
                 appBlockingModes = appModes,
                 context = this,
                 backgroundBlockingApps = bgBlockApps,
+                upstreamDns = java.net.InetAddress.getByName(primaryDns),
                 onDnsQuery = { domain, pkg, blocked, queryType ->
                     serviceScope.launch(Dispatchers.IO) {
                         try {
@@ -408,13 +413,10 @@ class BlockerService : VpnService() {
         const val ACTION_RELOAD_BLOCKLIST = "com.akash.apptrafficblocker.ACTION_RELOAD_BLOCKLIST"
         private const val NOTIF_ID = 1001
         private const val SERVICE_INTERFACE = "android.net.VpnService"
-        private const val UPSTREAM_DNS = "8.8.8.8"
-        private const val UPSTREAM_DNS_SECONDARY = "8.8.4.4"
         private const val RESTART_REQUEST_CODE = 9999
 
         // IPs of major DoH/DoT providers — route these through the VPN so
         // encrypted DNS connections are dropped, forcing standard DNS fallback.
-        // (8.8.8.8 and 8.8.4.4 are already routed as our upstream DNS.)
         private val DOH_PROVIDER_IPS = listOf(
             "1.1.1.1",         // Cloudflare
             "1.0.0.1",         // Cloudflare secondary

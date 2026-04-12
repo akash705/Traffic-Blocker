@@ -113,6 +113,10 @@ class PrefsManager(context: Context) {
         get() = prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
         set(value) = prefs.edit().putString(KEY_THEME_MODE, value).apply()
 
+    var upstreamDns: String
+        get() = prefs.getString(KEY_UPSTREAM_DNS, DNS_GOOGLE) ?: DNS_GOOGLE
+        set(value) = prefs.edit().putString(KEY_UPSTREAM_DNS, value).apply()
+
     fun getAppBlockingMode(packageName: String): String {
         return appBlockingModes[packageName] ?: MODE_BLOCK_ALL
     }
@@ -132,11 +136,21 @@ class PrefsManager(context: Context) {
         private const val KEY_APP_BLOCKING_MODES = "pref_app_blocking_modes"
         private const val KEY_BACKGROUND_BLOCKING_APPS = "pref_background_blocking_apps"
         private const val KEY_THEME_MODE = "pref_theme_mode"
+        private const val KEY_UPSTREAM_DNS = "pref_upstream_dns"
         const val DEFAULT_POLL_INTERVAL = 1000L
         const val MODE_BLOCK_ALL = "block_all"
         const val MODE_BLOCK_DOMAINS = "block_domains"
         const val THEME_SYSTEM = "system"
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
+        const val DNS_GOOGLE = "8.8.8.8"
+        const val DNS_CLOUDFLARE = "1.1.1.1"
+        const val DNS_QUAD9 = "9.9.9.9"
+        /** Maps primary DNS IP to its secondary. */
+        val DNS_SECONDARY = mapOf(
+            DNS_GOOGLE to "8.8.4.4",
+            DNS_CLOUDFLARE to "1.0.0.1",
+            DNS_QUAD9 to "149.112.112.112"
+        )
     }
 }

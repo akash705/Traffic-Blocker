@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traffic Blocker — Block Internet Per App on Android</title>
+  <meta name="description" content="A no-root Android app that blocks internet access per app using a local VPN. Block all traffic or specific domains with custom blocklists.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <div class="hero-icon">&#128721;</div>
+    <h1>Traffic Blocker</h1>
+    <p class="tagline">Block internet per app on Android — no root required</p>
+    <div class="hero-actions">
+      <a href="https://github.com/akash705/Traffic-Blocker/releases/latest" class="btn btn-primary">Download APK</a>
+      <a href="https://github.com/akash705/Traffic-Blocker" class="btn btn-secondary">View on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="features">
+    <div class="container">
+      <h2>Features</h2>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">&#128274;</div>
+          <h3>Per-App Traffic Control</h3>
+          <p>Select which apps to block from a list of all installed apps. Each app can be independently configured.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9878;</div>
+          <h3>Two Blocking Modes</h3>
+          <p><strong>Block All Traffic</strong> cuts off internet completely. <strong>Block Domains</strong> only blocks matching domains from your blocklists.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#127761;</div>
+          <h3>Background Blocking</h3>
+          <p>Block an app's network access when it's not in the foreground — stop background ads, telemetry, and data usage.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128220;</div>
+          <h3>Custom Blocklists</h3>
+          <p>Add your own blocklist URLs. Supports plain domain lists and hosts-file format. Ships with Hagezi list recommendations.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128200;</div>
+          <h3>DNS Query Log</h3>
+          <p>Real-time log of all DNS queries showing blocked vs allowed domains per app.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128451;</div>
+          <h3>Blocking Profiles</h3>
+          <p>Save and switch between different blocking configurations for quick toggling between setups.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9889;</div>
+          <h3>Quick Settings Tile</h3>
+          <p>Start or stop the blocker from the notification shade — no need to open the app.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128260;</div>
+          <h3>Launcher Shortcuts</h3>
+          <p>Long-press the app icon for Start/Stop shortcuts. Compatible with Samsung Routines automation.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="how-it-works">
+    <div class="container">
+      <h2>How It Works</h2>
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <p>A local VPN tunnel intercepts only DNS traffic — no other data passes through</p>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <p>Only selected apps are routed through the tunnel using Android's per-app VPN scoping</p>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <p>DNS queries are parsed and matched against your blocklists in real time</p>
+        </div>
+        <div class="step">
+          <span class="step-num">4</span>
+          <p>Blocked queries return <code>0.0.0.0</code> — allowed queries are forwarded upstream normally</p>
+        </div>
+        <div class="step">
+          <span class="step-num">5</span>
+          <p>DoH/DoT providers are blocked to prevent DNS bypass via encrypted DNS</p>
+        </div>
+      </div>
+      <p class="note">Non-DNS traffic is never routed through the VPN. Apps using "Block Domains" mode still access non-blocked sites at full speed.</p>
+    </div>
+  </section>
+
+  <section class="blocklists">
+    <div class="container">
+      <h2>Recommended Blocklists</h2>
+      <p>We recommend the excellent blocklists by <a href="https://github.com/hagezi/dns-blocklists">Hagezi</a>. Just copy a URL and paste it into the app.</p>
+      <div class="blocklist-table">
+        <table>
+          <thead>
+            <tr><th>List</th><th>Domains</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><a href="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/light.txt">Light</a></td><td>~80K</td><td>Basic ad/tracker blocking, minimal false positives</td></tr>
+            <tr><td><a href="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/multi.txt">Normal</a></td><td>~180K</td><td>Balanced blocking for daily use</td></tr>
+            <tr><td><a href="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/pro.txt">Pro</a></td><td>~310K</td><td>Aggressive blocking for advanced users</td></tr>
+            <tr><td><a href="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/ultimate.txt">Ultimate</a></td><td>~400K</td><td>Maximum blocking coverage</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="requirements">
+    <div class="container">
+      <h2>Requirements</h2>
+      <ul>
+        <li>Android 8.0 (API 26) or higher</li>
+        <li>VPN permission (prompted on first use)</li>
+        <li>Usage Stats permission (for foreground app detection)</li>
+        <li>Battery optimization exemption recommended for reliable background operation</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="container">
+      <h2>Get Started</h2>
+      <p>Download the latest release, grant VPN permission, and start blocking.</p>
+      <a href="https://github.com/akash705/Traffic-Blocker/releases/latest" class="btn btn-primary">Download Latest Release</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <p>Traffic Blocker is open source under the <a href="https://github.com/akash705/Traffic-Blocker/blob/main/LICENSE">MIT License</a>.</p>
+    <p>Made by <a href="https://github.com/akash705">Akash</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
