@@ -12,11 +12,11 @@ fun getKeychainPassword(account: String, service: String): String {
 }
 
 android {
-    namespace = "com.akash.apptrafficblocker"
+    namespace = "com.vedtechnologies.trafficblocker"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.akash.apptrafficblocker"
+        applicationId = "com.vedtechnologies.trafficblocker"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
