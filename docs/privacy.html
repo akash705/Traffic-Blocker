@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Traffic Blocker</title>
+  <meta name="description" content="Privacy Policy for Traffic Blocker, a no-root Android app that blocks internet access per app using a local VPN.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .policy { max-width: 720px; margin: 0 auto; }
+    .policy h2 { text-align: left; font-size: 1.5rem; margin-bottom: 16px; margin-top: 48px; }
+    .policy p, .policy li { color: var(--text-muted); font-size: 0.95rem; line-height: 1.7; }
+    .policy p { margin-bottom: 16px; }
+    .policy ul { margin: 12px 0 16px 24px; }
+    .policy li { margin-bottom: 8px; }
+    .policy-date { color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<header class="hero" style="padding: 64px 0 40px;">
+  <div class="container">
+    <h1 style="font-size: 2.2rem;">Privacy Policy</h1>
+    <p class="tagline">Traffic Blocker</p>
+    <p class="policy-date">Effective date: April 14, 2026</p>
+  </div>
+</header>
+
+<main>
+  <section style="padding: 40px 0 80px;">
+    <div class="container policy">
+
+      <h2>Overview</h2>
+      <p>Traffic Blocker is an open-source Android app that blocks internet access on a per-app basis using a local VPN. It is designed with privacy as a core principle: <strong>no data leaves your device</strong>.</p>
+
+      <h2>Data Collection</h2>
+      <p>Traffic Blocker does <strong>not</strong> collect, transmit, or share any personal data. Specifically:</p>
+      <ul>
+        <li>No analytics or tracking libraries are included.</li>
+        <li>No crash reporting services are used.</li>
+        <li>No user accounts or registration are required.</li>
+        <li>No advertising SDKs are included.</li>
+        <li>No data is sent to any server operated by us or any third party.</li>
+      </ul>
+
+      <h2>Local VPN</h2>
+      <p>Traffic Blocker uses Android's <code>VpnService</code> API to create a local, on-device VPN tunnel. This VPN:</p>
+      <ul>
+        <li>Runs entirely on your device. No traffic is routed to any external server.</li>
+        <li>Only intercepts DNS queries for apps you have selected.</li>
+        <li>Does not inspect, log, or transmit the content of your network traffic.</li>
+        <li>Is scoped to specific apps using Android's per-app VPN feature — unselected apps are unaffected.</li>
+      </ul>
+
+      <h2>DNS Query Log</h2>
+      <p>The app provides an optional DNS query log that shows which domains were queried and whether they were blocked or allowed. This log:</p>
+      <ul>
+        <li>Is stored locally on your device only.</li>
+        <li>Is never transmitted off-device.</li>
+        <li>Can be cleared at any time from within the app.</li>
+      </ul>
+
+      <h2>Blocklist Downloads</h2>
+      <p>When you add a blocklist URL, the app downloads the list directly from that URL to your device. During this download:</p>
+      <ul>
+        <li>Only the blocklist file is fetched. No user data, device identifiers, or other information is sent.</li>
+        <li>The request is a standard HTTP(S) GET request with no custom headers or tracking parameters.</li>
+        <li>Downloaded blocklists are stored locally on your device.</li>
+      </ul>
+      <p>The blocklist provider's own privacy policy governs how they handle incoming requests to their servers.</p>
+
+      <h2>DoH/DoT Provider Blocking</h2>
+      <p>To ensure DNS-based blocking is effective, the app blocks connections to known DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT) provider IP addresses for selected apps. This prevents those apps from bypassing DNS blocking via encrypted DNS. No traffic to these IPs is logged or inspected — connections are simply refused.</p>
+
+      <h2>Permissions</h2>
+      <p>The app requests the following permissions, each necessary for its core functionality:</p>
+      <ul>
+        <li><strong>VPN:</strong> Creates the local VPN tunnel for DNS interception.</li>
+        <li><strong>Internet:</strong> Downloads blocklist files from user-provided URLs.</li>
+        <li><strong>Notifications:</strong> Displays the foreground service notification while blocking is active.</li>
+        <li><strong>Usage Stats:</strong> Detects which app is in the foreground for background blocking mode.</li>
+        <li><strong>Boot Completed:</strong> Restarts blocking automatically after device reboot (if enabled).</li>
+        <li><strong>Query All Packages:</strong> Lists installed apps so you can select which ones to block.</li>
+        <li><strong>Battery Optimization Exemption:</strong> Keeps the blocking service running reliably.</li>
+      </ul>
+
+      <h2>Data Storage</h2>
+      <p>All app data — settings, selected apps, blocklists, profiles, and DNS logs — is stored locally on your device using standard Android storage mechanisms. No cloud sync or backup to external servers occurs.</p>
+
+      <h2>Third-Party Services</h2>
+      <p>Traffic Blocker does not integrate with any third-party services, SDKs, or APIs beyond what is described in the Blocklist Downloads section above.</p>
+
+      <h2>Children's Privacy</h2>
+      <p>Traffic Blocker does not collect any personal information from anyone, including children under the age of 13.</p>
+
+      <h2>Your Control</h2>
+      <p>You have full control over your data:</p>
+      <ul>
+        <li>Clear DNS logs at any time from within the app.</li>
+        <li>Remove blocklists at any time.</li>
+        <li>Uninstalling the app removes all locally stored data.</li>
+        <li>Disconnect the VPN at any time via the app, Quick Settings tile, or Android system settings.</li>
+      </ul>
+
+      <h2>Open Source</h2>
+      <p>Traffic Blocker is open source. You can review the full source code at <a href="https://github.com/akash705/Traffic-Blocker">github.com/akash705/Traffic-Blocker</a> to verify these privacy practices.</p>
+
+      <h2>Disclaimer</h2>
+      <p>Traffic Blocker is provided "as is" without warranty of any kind. The developer is not responsible for any damage, data loss, connectivity issues, or other adverse effects resulting from the use of this app. You use it at your own risk.</p>
+
+      <h2>Changes to This Policy</h2>
+      <p>If this privacy policy is updated, the revised version will be posted on this page with an updated effective date. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+
+      <h2>Contact</h2>
+      <p>If you have questions about this privacy policy, you can open an issue on the <a href="https://github.com/akash705/Traffic-Blocker/issues">GitHub repository</a>.</p>
+
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <p><a href="index.html">&larr; Back to Traffic Blocker</a></p>
+    <p>Traffic Blocker is open source under the <a href="https://github.com/akash705/Traffic-Blocker/blob/main/LICENSE">MIT License</a>.</p>
+    <p>Made by <a href="https://github.com/akash705">Akash</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
